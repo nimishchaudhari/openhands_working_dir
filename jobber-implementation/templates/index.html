@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Job Board</title>
+</head>
+<body>
+    <h1>Job Board</h1>
+    <a href="{{ url_for('add') }}">Add Job</a>
+    <ul>
+        {% for job in jobs %}
+            <li><a href="{{ url_for('job', job_id=job.id) }}">{{ job.title }} - {{ job.company }}</a></li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

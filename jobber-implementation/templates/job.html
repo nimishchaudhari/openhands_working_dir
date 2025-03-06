@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ job.title }} - {{ job.company }}</title>
+</head>
+<body>
+    <h1>{{ job.title }}</h1>
+    <h2>{{ job.company }}</h2>
+    <h3>{{ job.location }}</h3>
+    <p>{{ job.description }}</p>
+    <a href="{{ url_for('index') }}">Back to Job Board</a>
+</body>
+</html>
