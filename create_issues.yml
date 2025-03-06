@@ -1,0 +1,94 @@
+name: Create Issues from Comment (github-script)
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  create-issues:
+    if: contains(github.event.comment.body, '/create_issues')
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Create issues using github-script
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const commentBody = context.payload.comment.body;
+          const match = commentBody.match(/\/create_issues\s*(\[\[.*?\]\])/);
+          if (!match) {
+            console.log('No issues found in the correct format.');
+            return;
+          }
+
+          let issues;
+          try {
+            issues = JSON.parse(match[1]);
+            if (!Array.isArray(issues) || !issues.every(issue => Array.isArray(issue) && issue.length === 2 && issue.every(item => typeof item === 'string'))) {
+              throw new Error('Invalid issues format.');
+            }
+          } catch (error) {
+            console.error('Error parsing issues:', error);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `Error parsing issues: ${error.message}`
+            });
+            return;
+          }
+
+          // Create initial comment
+          const { data: newComment } = await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: `Workflow initialized, you can check the progress [here](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).`
+          });
+
+          const createdIssues = [];
+          const failedIssues = [];
+
+          for (const [title, body] of issues) {
+            try {
+              const { data: newIssue } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+              });
+              createdIssues.push({ title: newIssue.title, url: newIssue.html_url });
+              console.log(`Issue '${title}' created successfully at ${newIssue.html_url}`);
+            } catch (error) {
+              console.error(`Failed to create issue '${title}':`, error);
+              failedIssues.push(title);
+            }
+          }
+
+          let commentUpdateBody = `Workflow initialized, you can check the progress [here](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).\n\n`;
+
+          if (createdIssues.length > 0) {
+            commentUpdateBody += 'The following issues were created:\n';
+            createdIssues.forEach((issue, index) => {
+              commentUpdateBody += `${index + 1}. [${issue.title}](${issue.url})\n`;
+            });
+          }
+
+          if (failedIssues.length > 0) {
+            commentUpdateBody += '\nFailed to create the following issues:\n';
+            failedIssues.forEach(title => {
+              commentUpdateBody += `- ${title}\n`;
+            });
+          }
+
+          if (createdIssues.length === 0 && failedIssues.length === 0)
+          {
+            commentUpdateBody += 'No issues were created.'
+          }
+
+          await github.rest.issues.updateComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            comment_id: newComment.id,
+            body: commentUpdateBody,
+          });
