@@ -19,25 +19,34 @@ permissions:
 
 jobs:
   call-openhands-resolver:
-    runs-on: [self-hosted, local-runner]
+    runs-on: self-hosted  # Simplified to just self-hosted since it's a local runner
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.PAT_TOKEN }}  # Use PAT for authentication
 
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
           python-version: '3.x'
+          cache: 'pip'  # Add caching for faster local runs
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "${{ secrets.PAT_USERNAME }}"
+          git config --global user.email "${{ secrets.PAT_USERNAME }}@users.noreply.github.com"
 
       - name: Run OpenHands Resolver
         env:
+          # Environment variables with defaults for local execution
           OPENHANDS_MACRO: ${{ vars.OPENHANDS_MACRO || '@openhands-agent' }}
-          OPENHANDS_MAX_ITER: ${{ fromJson(vars.OPENHANDS_MAX_ITER || 50) }}
+          OPENHANDS_MAX_ITER: ${{ vars.OPENHANDS_MAX_ITER || '50' }}
           OPENHANDS_BASE_CONTAINER_IMAGE: ${{ vars.OPENHANDS_BASE_CONTAINER_IMAGE || '' }}
           LLM_MODEL: ${{ vars.LLM_MODEL || 'anthropic/claude-3-5-sonnet-20241022' }}
           TARGET_BRANCH: ${{ vars.TARGET_BRANCH || 'main' }}
@@ -45,7 +54,24 @@ jobs:
           PAT_USERNAME: ${{ secrets.PAT_USERNAME }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          # Add local-specific variables if needed
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
         run: |
-          # Add the command you want to run the OpenHands resolver
-          # Example:
-          python openhands_resolver.py
+          # Verify required secrets are present
+          if [ -z "$PAT_TOKEN" ] || [ -z "$PAT_USERNAME" ]; then
+            echo "Error: PAT_TOKEN and PAT_USERNAME secrets must be set"
+            exit 1
+          fi
+          
+          # Ensure requirements.txt exists or provide fallback
+          if [ ! -f requirements.txt ]; then
+            echo "Warning: requirements.txt not found, assuming dependencies are pre-installed"
+          fi
+          
+          # Run the resolver with error handling
+          python openhands_resolver.py || {
+            echo "Error: OpenHands resolver failed"
+            exit 1
+          }
