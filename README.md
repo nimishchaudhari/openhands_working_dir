@@ -1,0 +1,1 @@
+https://thebcms.com/docs/integrations/next-js
