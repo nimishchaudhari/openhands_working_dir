@@ -18,6 +18,11 @@ jobs:
           COMMENT="${{ github.event.comment.body }}"
           if [[ "$COMMENT" =~ ^/research_agent[[:space:]]+(.*)$ ]]; then
             TOPIC=$(echo "${BASH_REMATCH[1]}" | tr -d '\r')
+            if [[ ${#TOPIC} -gt 200 ]]; then
+              echo "::set-output name=valid_command::false"
+              echo "Topic is too long. Please limit it to 200 characters."
+              exit 1
+            fi
             echo "RESEARCH_TOPIC=$TOPIC" >> $GITHUB_OUTPUT
             echo "::set-output name=valid_command::true"
           else
@@ -52,16 +57,35 @@ jobs:
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python examples/open_deep_research/run.py --model-id "o1" "${{ steps.extract_topic.outputs.RESEARCH_TOPIC }}" > research_output.txt
+        continue-on-error: true
+        id: run_research
 - name: Post research output
-        if: steps.extract_topic.outputs.valid_command == 'true'
+        if: steps.extract_topic.outputs.valid_command == 'true' && steps.run_research.outcome == 'success'
         uses: actions/github-script@v6
         with:
           script: |
             const fs = require('fs');
-            const output = fs.readFileSync('research_output.txt', 'utf8');
-            github.rest.issues.createComment({
+            let output = fs.readFileSync('research_output.txt', 'utf8');
+            const MAX_OUTPUT_SIZE = 65535; // Maximum comment size in GitHub
+            if (output.length > MAX_OUTPUT_SIZE) {
+              output = output.substring(0, MAX_OUTPUT_SIZE) + '\n... (truncated, see full output in research_output.txt)';
+            }
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: output
+            })
+            await new Promise(resolve => setTimeout(resolve, 1000)); # Delay to avoid rate limiting
+
+      - name: Post error message
+        if: steps.extract_topic.outputs.valid_command == 'true' && steps.run_research.outcome != 'success'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'Research agent failed to run. Please check the logs for details.'
             })
