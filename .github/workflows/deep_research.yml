@@ -1,9 +1,8 @@
 name: Deep Research
 
 on:
-  push:
-    branches:
-      - main
+  issue_comment:
+    types: [created]
 
 jobs:
   deep_research:
@@ -13,6 +12,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Extract research topic
+        id: extract_topic
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+          if [[ "$COMMENT" =~ ^/research_agent[[:space:]]+(.*)$ ]]; then
+            TOPIC=$(echo "${BASH_REMATCH[1]}" | tr -d '\r')
+            echo "RESEARCH_TOPIC=$TOPIC" >> $GITHUB_OUTPUT
+            echo "::set-output name=valid_command::true"
+          else
+            echo "::set-output name=valid_command::false"
+            echo "Invalid command. Please use /research_agent <topic>"
+          fi
+
+- name: Post "research agent is running" comment
+        if: steps.extract_topic.outputs.valid_command == 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'Research agent is running...'
+            })
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
@@ -24,7 +47,21 @@ jobs:
           pip install -e ../../.[dev]
 
       - name: Run deep research agent
+        if: steps.extract_topic.outputs.valid_command == 'true'
         env:
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python examples/open_deep_research/run.py --model-id "o1" "What are the latest advancements in AI?"
+        run: python examples/open_deep_research/run.py --model-id "o1" "${{ steps.extract_topic.outputs.RESEARCH_TOPIC }}" > research_output.txt
+- name: Post research output
+        if: steps.extract_topic.outputs.valid_command == 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('research_output.txt', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
