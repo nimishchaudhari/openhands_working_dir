@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import requests
 import argparse
 
-def main(input_file, output_file, model_id, api_key):
+def main(input_file, output_file, api_key, model_id):
     # Read input
     with open(input_file, 'r') as f:
         input_text = f.read()
@@ -68,8 +68,8 @@ class SimpleTextBrowser:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run research agent with smolagents")
-    parser.add_argument('--model', required=True, help="Model ID (e.g., gpt-4o-mini)")
+
     parser.add_argument('--input', required=True, help="Path to input file")
     parser.add_argument('--output', required=True, help="Path to output file")
     args = parser.parse_args()
-    main(args.input, args.output, args.model, os.environ['LLM_API_KEY'])
+    main(args.input, args.output, os.environ['LLM_API_KEY'], os.environ['LLM_MODEL'])

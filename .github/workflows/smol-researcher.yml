@@ -38,7 +38,7 @@ jobs:
           LLM_MODEL: gpt-4o-mini
         run: |
           mkdir -p scripts
-          python scripts/research_agent.py --model $LLM_MODEL --input input.txt --output output.txt
+          python scripts/research_agent.py --input input.txt --output output.txt
 
       - name: Post result as comment
         run: |
