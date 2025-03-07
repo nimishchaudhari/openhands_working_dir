@@ -8,6 +8,9 @@ jobs:
   research:
     if: contains(github.event.comment.body, '@smol_researcher')
     runs-on: ubuntu-latest
+    env:
+      LLM_MODEL: gpt-4o-mini
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -33,12 +36,9 @@ jobs:
           echo "Body: ${{ github.event.issue.body }}" >> input.txt
 
       - name: Run research script
-        env:
-          LLM_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          LLM_MODEL: gpt-4o-mini
         run: |
           mkdir -p scripts
-          python scripts/research_agent.py --input input.txt --output output.txt
+          python scripts/research_agent.py --input input.txt --output input.txt
 
       - name: Post result as comment
         run: |

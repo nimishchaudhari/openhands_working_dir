@@ -4,7 +4,13 @@ from bs4 import BeautifulSoup
 import requests
 import argparse
 
-def main(input_file, output_file, api_key, model_id):
+def main(input_file, output_file):
+    try:
+        api_key = os.environ['LLM_API_KEY']
+        model_id = os.environ['LLM_MODEL']
+    except KeyError as e:
+        print(f"Error: Environment variable {e} is not set: {e}")
+        exit(1)
     # Read input
     with open(input_file, 'r') as f:
         input_text = f.read()
@@ -69,7 +75,7 @@ class SimpleTextBrowser:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run research agent with smolagents")
 
-    parser.add_argument('--input', required=True, help="Path to input file")
-    parser.add_argument('--output', required=True, help="Path to output file")
+parser.add_argument("--input", required=True, help="Path to input file")
+parser.add_argument("--output", required=True, help="Path to output file")
     args = parser.parse_args()
-    main(args.input, args.output, os.environ['LLM_API_KEY'], os.environ['LLM_MODEL'])
+    main(args.input, args.output)
