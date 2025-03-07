@@ -1,8 +1,9 @@
-name: Deep Research Fixed
+name: Deep Research
 
 on:
-workflow_dispatch:
   issue_comment:
+    types: [created]
+    if: github.event.comment.body == '/deep_research'
     types: [created]
 
 jobs:
