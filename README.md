@@ -4,6 +4,7 @@
 This repo is used for development by OpenHands, favoring Gemini Flash as the model. 
 ## Configuration
 
+## Deep reaearch using smolagents via github actions
 To run the Deep Research workflow, you need to configure the following secrets in your GitHub repository settings:
 
 - `SERPAPI_API_KEY`: Your SerpAPI API key. You can sign up for a key at https://serpapi.com/users/sign_up.
