@@ -9,8 +9,8 @@ jobs:
     if: contains(github.event.comment.body, '@smol_researcher')
     runs-on: ubuntu-latest
     env:
-      LLM_MODEL: ${{ vars.LLM_MODEL }}
-      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      LLM_MODEL: ${{ vars.LLM_MODEL }}  # Repository variable for the LLM model
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}  # Repository secret for the API key
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -26,6 +26,7 @@ jobs:
           pip install beautifulsoup4
           pip install requests
           pip install litellm
+          # Add other dependencies if required by research_agent.py
 
       - name: Prepare input
         run: |
@@ -37,20 +38,20 @@ jobs:
 
       - name: Run research script
         run: |
-          mkdir -p scripts
-          python scripts/research_agent.py --input input.txt --output input.txt
+          python scripts/research_agent.py --input input.txt --output output.txt
 
       - name: Post result as comment
         run: |
           if [ -s output.txt ]; then
             output=$(cat output.txt)
+            # Use Markdown for better formatting in GitHub comments
             curl -X POST \
               -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              -d "{\"body\": \"Smol Researcher Result:\n\n$output\"}" \
+              -d "{\"body\": \"**Smol Researcher Result:**\n\n$output\"}" \
               "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
           else
             curl -X POST \
               -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              -d "{\"body\": \"Unable to process the request at this time.\"}" \
+              -d "{\"body\": \"**Smol Researcher:** Unable to process the request at this time.\"}" \
               "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
           fi
