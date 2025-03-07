@@ -16,6 +16,10 @@ jobs:
       - name: Extract research topic
         id: extract_topic
         run: |
+if [[ ! "${{ github.event.comment.body }}" == *"/deep_research"* ]]; then
+  echo "Workflow triggered without /deep_research command. Exiting."
+  exit 0
+fi
           COMMENT="${{ github.event.comment.body }}"
           if [[ "$COMMENT" =~ ^/deep_research[[:space:]]+(.*)$ ]] &amp;&amp; [[ "$COMMENT" == *"/deep_research"* ]]; then
             TOPIC=$(echo "${BASH_REMATCH[1]}" | tr -d '\r')
