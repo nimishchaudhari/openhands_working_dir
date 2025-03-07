@@ -9,7 +9,7 @@ jobs:
     if: contains(github.event.comment.body, '@smol_researcher')
     runs-on: ubuntu-latest
     env:
-      LLM_MODEL: gpt-4o-mini
+      LLM_MODEL: ${{ vars.LLM_MODEL }}
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
     steps:
       - name: Checkout repository
