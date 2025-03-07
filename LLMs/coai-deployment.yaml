@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coai-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coai
+  template:
+    metadata:
+      labels:
+        app: coai
+    spec:
+      containers:
+      - name: coai
+        image: coai:latest
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        ports:
+        - containerPort: 9000
