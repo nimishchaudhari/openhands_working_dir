@@ -1,0 +1,448 @@
+# k8s/all-resources.yaml
+
+#############################################
+# PersistentVolumeClaims for persistent data
+#############################################
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: anythingllm-storage-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: code-server-config-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: n8n-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: open-webui-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+#############################################
+# 11000_personal-website Deployment & Service
+#############################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: personal-website
+  labels:
+    app: personal-website
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: personal-website
+  template:
+    metadata:
+      labels:
+        app: personal-website
+    spec:
+      containers:
+      - name: personal-website
+        image: my-personal-website:latest
+        ports:
+        - containerPort: 11000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: personal-website
+spec:
+  type: NodePort
+  selector:
+    app: personal-website
+  ports:
+  - protocol: TCP
+    port: 11000
+    targetPort: 11000
+    nodePort: 31100
+---
+#############################################
+# 11002_anythingllm Deployment & Service
+#############################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anythingllm
+  labels:
+    app: anythingllm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: anythingllm
+  template:
+    metadata:
+      labels:
+        app: anythingllm
+    spec:
+      containers:
+      - name: anythingllm
+        image: mintplexlabs/anythingllm:latest
+        ports:
+        - containerPort: 3001
+        env:
+          - name: STORAGE_DIR
+            value: "/app/server/storage"
+          - name: JWT_SECRET
+            value: "XryIRjv0ioDzfXryIRjv0ioDzfXryIRjv0ioDzf"
+          - name: VECTOR_DB
+            value: "lancedb"
+          - name: WHISPER_PROVIDER
+            value: "local"
+          - name: TTS_PROVIDER
+            value: "native"
+          - name: PASSWORDMINCHAR
+            value: "8"
+        volumeMounts:
+          - name: anythingllm-storage
+            mountPath: /app/server/storage
+        securityContext:
+          capabilities:
+            add: ["SYS_ADMIN"]
+      volumes:
+      - name: anythingllm-storage
+        persistentVolumeClaim:
+          claimName: anythingllm-storage-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: anythingllm
+spec:
+  type: NodePort
+  selector:
+    app: anythingllm
+  ports:
+  - protocol: TCP
+    port: 11002
+    targetPort: 3001
+    nodePort: 31102
+---
+#############################################
+# 11003_code-server Deployment & Service
+#############################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: code-server
+  labels:
+    app: code-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: code-server
+  template:
+    metadata:
+      labels:
+        app: code-server
+    spec:
+      containers:
+      - name: code-server
+        image: lscr.io/linuxserver/code-server:latest
+        ports:
+        - containerPort: 8443
+        env:
+          - name: PUID
+            value: "1000"
+          - name: PGID
+            value: "1000"
+          - name: TZ
+            value: "Etc/UTC"
+          - name: PASSWORD
+            value: "123123dr"
+          - name: SUDO_PASSWORD
+            value: "123123dr"
+          - name: PROXY_DOMAIN
+            value: "code.jetpack-ai.net"
+          - name: DEFAULT_WORKSPACE
+            value: "/config/workspace"
+        volumeMounts:
+          - name: code-server-config
+            mountPath: /config
+      volumes:
+      - name: code-server-config
+        persistentVolumeClaim:
+          claimName: code-server-config-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: code-server
+spec:
+  type: NodePort
+  selector:
+    app: code-server
+  ports:
+  - protocol: TCP
+    port: 11003
+    targetPort: 8443
+    nodePort: 31103
+---
+#############################################
+# 11004_n8n Deployment & Service
+#############################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n
+  labels:
+    app: n8n
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: n8n
+  template:
+    metadata:
+      labels:
+        app: n8n
+    spec:
+      containers:
+      - name: n8n
+        image: n8nio/n8n
+        ports:
+        - containerPort: 5678
+        env:
+          - name: host
+            value: "n8n.jetpack-ai.net"
+        volumeMounts:
+          - name: n8n-data
+            mountPath: /home/node/.n8n
+      volumes:
+      - name: n8n-data
+        persistentVolumeClaim:
+          claimName: n8n-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: n8n
+spec:
+  type: NodePort
+  selector:
+    app: n8n
+  ports:
+  - protocol: TCP
+    port: 11004
+    targetPort: 5678
+    nodePort: 31104
+---
+#############################################
+# 11006_open-webui Deployment & Service
+#############################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open-webui
+  labels:
+    app: open-webui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: open-webui
+  template:
+    metadata:
+      labels:
+        app: open-webui
+    spec:
+      containers:
+      - name: open-webui
+        image: ghcr.io/open-webui/open-webui:main
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+          - name: open-webui-data
+            mountPath: /app/backend/data
+      volumes:
+      - name: open-webui-data
+        persistentVolumeClaim:
+          claimName: open-webui-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: open-webui
+spec:
+  type: NodePort
+  selector:
+    app: open-webui
+  ports:
+  - protocol: TCP
+    port: 11006
+    targetPort: 8080
+    nodePort: 31106
+---
+#############################################
+# 11010_openhands Deployment & Service
+#############################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openhands
+  labels:
+    app: openhands
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openhands
+  template:
+    metadata:
+      labels:
+        app: openhands
+    spec:
+      containers:
+      - name: openhands
+        image: docker.all-hands.dev/all-hands-ai/openhands:0.26
+        ports:
+        - containerPort: 3000
+        env:
+          - name: SANDBOX_RUNTIME_CONTAINER_IMAGE
+            value: "docker.all-hands.dev/all-hands-ai/runtime:0.26-nikolaik"
+          - name: LOG_ALL_EVENTS
+            value: "true"
+          - name: WORKSPACE_MOUNT_PATH
+            value: "/opt/workspace_base"
+          - name: SANDBOX_RUNTIME
+            value: "daytona"
+        volumeMounts:
+          - name: docker-sock
+            mountPath: /var/run/docker.sock
+          - name: openhands-state
+            mountPath: /.openhands-state
+          - name: workspace-base
+            mountPath: /opt/workspace_base
+      volumes:
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+      - name: openhands-state
+        hostPath:
+          path: "C:/Users/Nimish/.openhands-state"
+      - name: workspace-base
+        hostPath:
+          path: "./workspace"  # Adjust as needed
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openhands
+spec:
+  type: NodePort
+  selector:
+    app: openhands
+  ports:
+  - protocol: TCP
+    port: 11010
+    targetPort: 3000
+    nodePort: 31110
+---
+#############################################
+# 11103_watchtower Deployment
+#############################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watchtower
+  labels:
+    app: watchtower
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: watchtower
+  template:
+    metadata:
+      labels:
+        app: watchtower
+    spec:
+      containers:
+      - name: watchtower
+        image: containrrr/watchtower
+        volumeMounts:
+          - name: docker-sock
+            mountPath: /var/run/docker.sock
+      volumes:
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+---
+#############################################
+# 11012_litellm Deployment & Service
+#############################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  labels:
+    app: litellm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: litellm
+  template:
+    metadata:
+      labels:
+        app: litellm
+    spec:
+      containers:
+      - name: litellm
+        image: ghcr.io/berriai/litellm:litellm_stable_release_branch-v1.61.13-stable
+        ports:
+        - containerPort: 4000
+        env:
+          - name: STORE_MODEL_IN_DB
+            value: "True"
+          - name: DATABASE_URL
+            value: "postgresql://postgres:postgres@42110_khoj-database:5432/postgres"
+          - name: LITELLM_MASTER_KEY
+            value: "sk-1234"
+          - name: LITELLM_SALT_KEY
+            value: "sk-XXXXXXXX"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm
+spec:
+  type: NodePort
+  selector:
+    app: litellm
+  ports:
+  - protocol: TCP
+    port: 11012
+    targetPort: 4000
+    nodePort: 31112
